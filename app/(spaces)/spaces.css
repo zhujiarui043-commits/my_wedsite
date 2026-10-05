@@ -1,0 +1,69 @@
+.space-scene {
+  position: relative;
+  isolation: isolate;
+  min-height: 100svh;
+  overflow: hidden;
+  padding: 0 clamp(24px, 5vw, 80px) 64px;
+  background: #141a17;
+  color: #f8faf5;
+}
+
+.space-backdrop {
+  position: fixed;
+  inset: -18px;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(150deg, #29332c, #151b17);
+}
+
+.space-backdrop img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 60%;
+  filter: blur(6px) brightness(.38);
+  transform: scale(1.05);
+}
+
+.space-shell { max-width: 1280px; margin: 0 auto; }
+
+.space-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  min-height: 104px;
+  padding-block: 20px;
+  border-bottom: 1px solid rgb(255 255 255 / 18%);
+}
+
+.space-home-link { display: inline-flex; align-items: center; gap: 10px; padding-block: 12px; }
+.space-nav { display: flex; flex-wrap: wrap; gap: 8px clamp(12px, 2vw, 32px); }
+.space-nav a { position: relative; padding-block: 12px; color: #d6ddd2; font-size: clamp(18px, 1.5vw, 22px); font-weight: 700; transition: color 220ms ease, transform 220ms ease; }
+.space-nav a:hover,
+.space-nav a[aria-current="page"] { color: #fff; }
+.space-nav a:hover,
+.space-nav a:focus-visible { transform: translateY(-3px) scale(1.16); }
+.space-nav a[aria-current="page"]::after { content: ''; position: absolute; left: 0; right: 0; bottom: 5px; height: 1px; background: #fff; }
+.space-scene a:focus-visible { outline: 1px solid #fff; outline-offset: 5px; border-radius: 2px; }
+
+.space-main { padding-top: clamp(56px, 10vh, 110px); }
+.space-byline { margin: 0 0 24px; color: #c7d0c3; font-size: 11px; letter-spacing: 2.8px; }
+.space-main h1 { margin: 0; font-family: Georgia, 'Times New Roman', serif; font-size: clamp(56px, 7vw, 96px); font-weight: 400; font-style: italic; line-height: 1.15; }
+.space-description { max-width: 620px; margin: 24px 0 0; color: #e6e9e2; font-size: 18px; line-height: 1.8; }
+.space-placeholder { max-width: 720px; margin-top: 64px; padding-top: 24px; border-top: 1px solid rgb(255 255 255 / 20%); }
+.space-placeholder p { margin: 0; color: #bdc8b8; font-size: 14px; line-height: 1.8; }
+
+@media (max-width: 760px) {
+  .space-header { align-items: flex-start; flex-direction: column; gap: 8px; padding-block: 16px; }
+  .space-nav { gap: 4px 20px; }
+  .space-main { padding-top: 48px; }
+  .space-description { font-size: 16px; }
+  .space-backdrop img { object-position: 50% 45%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .space-nav a:hover,
+  .space-nav a:focus-visible { transform: none; }
+}

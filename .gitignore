@@ -1,0 +1,8 @@
+node_modules/
+.next/
+data/
+*.tsbuildinfo
+.env*
+
+# Original photo copies; the website uses the copies in public/.
+/*.jpg
