@@ -1,8 +1,9 @@
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { spaces, type SpaceId } from '@/lib/spaces';
 
-export default function SpacePage({ spaceId }: { spaceId: SpaceId }) {
+export default function SpacePage({ spaceId, media, children }: { spaceId: SpaceId; media?: ReactNode; children?: ReactNode }) {
   const space = spaces.find(item => item.id === spaceId)!;
 
   return (
@@ -20,13 +21,20 @@ export default function SpacePage({ spaceId }: { spaceId: SpaceId }) {
           ))}
         </nav>
       </header>
-      <main className="space-main">
-        <p className="space-byline">JERRY ZHU’S SPACE</p>
-        <h1>{space.label}</h1>
-        <p className="space-description">{space.description}</p>
-        <div className="space-placeholder">
-          <p>More coming soon.</p>
+      <main className={media ? 'space-main space-main-with-media' : 'space-main'}>
+        <div className="space-copy">
+          <p className="space-byline">JERRY ZHU’S SPACE</p>
+          <h1>{space.label}</h1>
+          {children ?? (
+            <>
+              <p className="space-description">{space.description}</p>
+              <div className="space-placeholder">
+                <p>More coming soon.</p>
+              </div>
+            </>
+          )}
         </div>
+        {media}
       </main>
     </div>
   );
