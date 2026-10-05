@@ -63,6 +63,22 @@ test('temporary preview serves public pages while keeping editing private', asyn
     assert.equal(received.length, count);
   });
 
+  await t.test('destination journals are shared while unknown and deeper routes stay private', async () => {
+    for (const slug of ['shanghai', 'osaka', 'hong-kong', 'macao', 'changchun', 'liaoning', 'yushan-island', 'jiande', 'yancheng']) {
+      const result = await request(relayPort, `/journey/${slug}?_rsc=journal`, 'GET', { rsc: '1' });
+      assert.equal(result.status, 200);
+      const forwarded = JSON.parse(result.body);
+      assert.equal(forwarded.url, `/journey/${slug}?_rsc=journal`);
+      assert.equal(forwarded.headers.rsc, '1');
+    }
+    assert.equal((await request(relayPort, '/journey/shanghai/', 'HEAD')).status, 200);
+    const count = received.length;
+    for (const pathname of ['/journey/unknown', '/journey/shanghai/studio', '/journey/shanghai/api/posts']) {
+      assert.equal((await request(relayPort, pathname)).status, 404);
+    }
+    assert.equal(received.length, count);
+  });
+
   await t.test('the studio, API, unshared routes, and project files stay private', async () => {
     const count = received.length;
     for (const pathname of ['/studio', '/api/posts', '/api/images/example', '/moments', '/AGENTS.md', '/.env', '/data/posts.json']) {

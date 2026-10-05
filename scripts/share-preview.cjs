@@ -2,9 +2,13 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
+const destinations = require('../lib/journey-destinations.json');
 
 const root = path.resolve(__dirname, '..');
-const pages = new Set(['/', '/about', '/journey', '/gallery', '/music', '/notes']);
+const pages = new Set([
+  '/', '/about', '/journey', '/gallery', '/music', '/notes',
+  ...destinations.map(destination => `/journey/${destination.slug}`),
+]);
 const forwardedHeaders = [
   'accept', 'accept-encoding', 'accept-language', 'user-agent',
   'if-none-match', 'if-modified-since', 'range', 'if-range',

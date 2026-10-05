@@ -1,0 +1,11 @@
+[
+  { "slug": "yancheng", "name": "Yancheng", "paragraphs": [] },
+  { "slug": "shanghai", "name": "Shanghai", "paragraphs": [] },
+  { "slug": "osaka", "name": "Osaka", "paragraphs": [] },
+  { "slug": "hong-kong", "name": "Hong Kong", "paragraphs": [] },
+  { "slug": "macao", "name": "Macao", "paragraphs": [] },
+  { "slug": "changchun", "name": "Changchun", "paragraphs": [] },
+  { "slug": "liaoning", "name": "Liaoning", "paragraphs": [] },
+  { "slug": "yushan-island", "name": "Yushan Island", "region": "Ningde", "paragraphs": [] },
+  { "slug": "jiande", "name": "Jiande", "region": "Hangzhou", "paragraphs": [] }
+]
