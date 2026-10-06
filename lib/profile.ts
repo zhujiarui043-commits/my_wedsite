@@ -1,10 +1,10 @@
 // Edit these values to update the homepage.
-// Add your portrait to public/profile.jpg, then set photo to '/profile.jpg'.
+// Keep the original portrait and use a lightweight WebP for display.
 // Leave both mbti and zodiac empty to hide the personality line.
 export const profile = {
   name: 'Jerry Zhu',
   initials: 'JZ',
-  photo: '/profile.jpg',
+  photo: '/profile.webp',
   background: '/background.jpg',
   university: 'Fudan University',
   major: 'Computer Science',

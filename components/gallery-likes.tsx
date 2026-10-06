@@ -17,17 +17,29 @@ export function useGalleryLikes(photos: GalleryPhoto[]) {
   useEffect(() => {
     mounted.current = true;
     let active = true;
+    let request: AbortController | null = null, refreshAgain = false;
     async function refresh() {
       if (document.hidden || pendingRef.current.size) return;
+      if (request) { refreshAgain = true; return; }
+      const abort = new AbortController();
+      request = abort;
       const before = revision.current;
       try {
-        const response = await fetch(GALLERY_LIKES_PATH, { cache: 'no-store', credentials: 'same-origin' });
+        const response = await fetch(GALLERY_LIKES_PATH, { cache: 'no-store', credentials: 'same-origin', signal: abort.signal });
         if (!response.ok) throw new Error();
         const state = await response.json() as GalleryLikeState;
         if (!active || before !== revision.current) return;
-        likedRef.current = new Set(state.liked);
-        setLiked(new Set(state.liked)); setCounts(state.counts); setReady(true); setError('');
-      } catch { if (active && before === revision.current) setError('Likes are temporarily unavailable. Please try again.'); }
+        const nextLiked = new Set(state.liked);
+        likedRef.current = nextLiked;
+        setLiked(previous => previous.size === nextLiked.size && [...previous].every(id => nextLiked.has(id)) ? previous : nextLiked);
+        const nextCounts = Object.fromEntries(photos.map(photo => [photo.id, state.counts[photo.id] || 0]));
+        setCounts(previous => photos.every(photo => previous[photo.id] === nextCounts[photo.id]) ? previous : nextCounts);
+        setReady(true); setError('');
+      } catch { if (active && !abort.signal.aborted && before === revision.current) setError('Likes are temporarily unavailable. Please try again.'); }
+      finally {
+        request = null;
+        if (refreshAgain && active) { refreshAgain = false; void refresh(); }
+      }
     }
     const reload = () => { void refresh(); };
     refreshRef.current = reload;
@@ -39,6 +51,7 @@ export function useGalleryLikes(photos: GalleryPhoto[]) {
     if (channel) channel.onmessage = reload;
     return () => {
       active = false; mounted.current = false;
+      request?.abort();
       window.clearInterval(interval); window.removeEventListener('focus', reload); document.removeEventListener('visibilitychange', reload);
       channel?.close(); channelRef.current = null; refreshRef.current = null;
     };

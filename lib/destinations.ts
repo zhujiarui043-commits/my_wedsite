@@ -3,7 +3,7 @@ import path from 'node:path';
 import { cache } from 'react';
 import defaults from './journey-destinations.json';
 import { journeyPlaces } from './journey-places';
-import { dataRoot, writeContentFile } from './content-storage';
+import { dataRoot } from './content-storage';
 import type { Destination } from './destination-shared';
 
 export async function listDestinations(): Promise<Destination[]> {
@@ -20,9 +20,6 @@ export async function listDestinations(): Promise<Destination[]> {
   }
 }
 export const findDestination = cache(async (slug: string) => (await listDestinations()).find(entry => entry.slug === slug));
-export async function writeDestinations(entries: Destination[]) {
-  await writeContentFile('destinations.json', entries);
-}
 export async function visitedPlaces() {
   const places = new Map<string, { id: string; name: string; country: string; longitude: number; latitude: number }>(journeyPlaces.map(place => [place.id, place]));
   for (const destination of await listDestinations()) {

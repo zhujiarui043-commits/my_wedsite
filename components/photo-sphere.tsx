@@ -22,6 +22,9 @@ export default function PhotoSphere({ photos }: { photos: GalleryPhoto[] }) {
     const surface = stage.current, globe = world.current;
     if (!surface || !globe) return;
     const tiles = Array.from(globe.querySelectorAll<HTMLDivElement>('.photo-sphere-tile'));
+    const buttons = tiles.map(tile => Array.from(tile.querySelectorAll<HTMLButtonElement>('button')));
+    const fronts: (boolean | undefined)[] = tiles.map(() => undefined);
+    const opacities = tiles.map(() => 0);
     const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
     let orientation: Quaternion = [...INITIAL], velocity: Vector = [0, 0, 0];
     let radius = 320, perspective = 1920, gap = 8, frame = 0, timestamp = 0, visible = true, paused = false;
@@ -32,12 +35,18 @@ export default function PhotoSphere({ photos }: { photos: GalleryPhoto[] }) {
       globe!.style.transform = rotationMatrix(orientation);
       const shown = new Set(visiblePhotoIndices(points, orientation, radius, perspective, sizes, gap));
       tiles.forEach((tile, index) => {
-        const facing = rotateVector(orientation, points[index])[2];
         const front = shown.has(index);
-        tile.style.opacity = front ? String(.48 + Math.max(0, facing) * .52) : '0';
-        tile.style.pointerEvents = front ? 'auto' : 'none';
-        tile.querySelectorAll<HTMLButtonElement>('button').forEach(button => { button.tabIndex = front ? 0 : -1; });
-        tile.setAttribute('aria-hidden', front ? 'false' : 'true');
+        const opacity = front ? .48 + Math.max(0, rotateVector(orientation, points[index])[2]) * .52 : 0;
+        if (fronts[index] !== front || Math.abs(opacities[index] - opacity) > .003) {
+          tile.style.opacity = String(opacity);
+          opacities[index] = opacity;
+        }
+        if (fronts[index] !== front) {
+          tile.style.pointerEvents = front ? 'auto' : 'none';
+          buttons[index].forEach(button => { button.tabIndex = front ? 0 : -1; });
+          tile.setAttribute('aria-hidden', front ? 'false' : 'true');
+          fronts[index] = front;
+        }
       });
     }
     function animate(time: number) {
@@ -79,21 +88,21 @@ export default function PhotoSphere({ photos }: { photos: GalleryPhoto[] }) {
       const nextVelocity = quaternionVelocity(delta, seconds), blend = 1 - Math.exp(-seconds / .025);
       velocity = velocity.map((value, index) => value * (1 - blend) + nextVelocity[index] * blend) as Vector;
       dragging.vector = vector; dragging.time = event.timeStamp;
-      paint();
+      wake();
     }
     function finish(event: PointerEvent, cancelled = false) {
       if (!dragging || event.pointerId !== dragging.id) return;
       const gesture = dragging; dragging = null;
       surface!.classList.remove('is-dragging');
       if (gesture.capture.hasPointerCapture(event.pointerId)) gesture.capture.releasePointerCapture(event.pointerId);
-      if (cancelled) { velocity = [0, 0, 0]; return; }
+      if (cancelled) { velocity = [0, 0, 0]; wake(); return; }
       if (!gesture.moved) {
         // A small angular impulse, followed by the same friction as a released drag.
         const point = localVector(event);
         velocity = [-point[1] * .06, .24, point[0] * .04];
         if (motion.matches) { orientation = multiply(axisAngle(velocity, .06), orientation); velocity = [0, 0, 0]; }
       } else if (event.timeStamp - gesture.time > 90 || motion.matches) velocity = [0, 0, 0];
-      timestamp = 0; paint(); wake();
+      timestamp = 0; wake();
     }
     const up = (event: PointerEvent) => finish(event);
     const cancel = (event: PointerEvent) => finish(event, true);
@@ -153,7 +162,7 @@ export default function PhotoSphere({ photos }: { photos: GalleryPhoto[] }) {
           return <div key={photo.id} className="photo-sphere-tile" style={{ transform: tileTransform(points[index]), opacity: 0, '--photo-width': Math.min(1, aspect).toFixed(6), '--photo-height': Math.min(1, 1 / aspect).toFixed(6) } as CSSProperties} aria-hidden="true">
             <button type="button" className="photo-sphere-open" aria-label={`View ${photo.title}`} tabIndex={-1}
               onDoubleClick={event => { event.stopPropagation(); setSelected(photo); }} onClick={event => { if (event.detail === 0) setSelected(photo); }}>
-              <img src={photo.thumbnail} alt={photo.title} draggable={false} decoding="async" />
+              <img src={photo.smallThumbnail ?? photo.thumbnail} alt={photo.title} draggable={false} loading="lazy" decoding="async" />
             </button>
             <PhotoLikeButton compact title={photo.title} count={likes.counts[photo.id] || 0} liked={likes.liked.has(photo.id)} pending={likes.pending.has(photo.id)} ready={likes.ready} onToggle={() => { void likes.toggle(photo.id); }} />
           </div>;

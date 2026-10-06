@@ -13,9 +13,11 @@ const pages = new Set([
 const forwardedHeaders = [
   'accept', 'accept-encoding', 'accept-language', 'user-agent',
   'if-none-match', 'if-modified-since', 'range', 'if-range',
-  'rsc', 'next-router-state-tree', 'next-router-prefetch', 'next-router-segment-prefetch',
+  // Next.js includes Next-URL in the RSC cache key; stripping it causes redirect loops.
+  'rsc', 'next-url', 'next-router-state-tree', 'next-router-prefetch', 'next-router-segment-prefetch',
 ];
 const likesPath = '/api/gallery/likes';
+const guestbookPath = '/api/guestbook';
 const visitorCookie = 'jerry_gallery_visitor';
 const visitorPattern = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
 
@@ -86,12 +88,33 @@ function createPreviewRelay(originPort, { readPosts = readPreviewPosts, readDest
 
     const normalizedPath = pathname.replace(/\/$/, '') || '/';
     const likes = pathname === likesPath;
-    if (!['GET', 'HEAD'].includes(request.method) && !(likes && request.method === 'POST')) {
-      response.setHeader('Allow', likes ? 'GET, HEAD, POST' : 'GET, HEAD');
+    const guestbook = pathname === guestbookPath;
+    if (!['GET', 'HEAD'].includes(request.method) && !((likes || guestbook) && request.method === 'POST')) {
+      response.setHeader('Allow', likes || guestbook ? 'GET, HEAD, POST' : 'GET, HEAD');
       reject(405, 'This preview does not allow content editing.');
       return;
     }
     let likeBody;
+    if (guestbook && request.method === 'POST') {
+      try {
+        const origin = new URL(request.headers.origin);
+        if (!['http:', 'https:'].includes(origin.protocol) || origin.host !== request.headers.host || origin.origin !== request.headers.origin) throw new Error('Foreign origin');
+      } catch { reject(403, 'Open the guestbook on this website to leave a message.'); return; }
+      if (request.headers['content-type']?.split(';')[0].trim().toLowerCase() !== 'application/json') { reject(415, 'Send your message as JSON.'); return; }
+      let bytes = 0, chunks = [];
+      try {
+        for await (const chunk of request) { bytes += chunk.length; if (bytes <= 16384) chunks.push(chunk); }
+        if (bytes > 16384) { reject(413, 'Your message is too long.'); return; }
+        const input = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+        if (!input || Array.isArray(input) || typeof input !== 'object' || !visitorPattern.test(input.id)) throw new Error('Invalid message');
+        if (input.action === 'like') {
+          if (typeof input.liked !== 'boolean' || Object.keys(input).some(key => !['action', 'id', 'liked'].includes(key))) throw new Error('Invalid vote');
+        } else if (input.action === 'message') {
+          if (typeof input.nickname !== 'string' || !input.nickname.trim() || input.nickname.trim().length > 40 || typeof input.body !== 'string' || !input.body.trim() || input.body.trim().length > 2000 || (input.parentId !== null && !visitorPattern.test(input.parentId)) || Object.keys(input).some(key => !['action', 'id', 'nickname', 'body', 'parentId'].includes(key))) throw new Error('Invalid message');
+        } else throw new Error('Invalid action');
+        likeBody = JSON.stringify(input);
+      } catch { reject(400, 'Check your message.'); return; }
+    }
     if (likes && request.method === 'POST') {
       try {
         const origin = new URL(request.headers.origin);
@@ -144,7 +167,7 @@ function createPreviewRelay(originPort, { readPosts = readPreviewPosts, readDest
       ? path.join(root, '.next', pathname.slice('/_next/'.length))
       : null;
     const nextAsset = staticFile && fs.existsSync(staticFile) && fs.statSync(staticFile).isFile();
-    if (!likes && !page && !albumPage && !notePage && !destinationPage && !publishedImage && !assets.has(pathname) && !nextAsset) {
+    if (!likes && !guestbook && !page && !albumPage && !notePage && !destinationPage && !publishedImage && !assets.has(pathname) && !nextAsset) {
       reject(404, 'This page is not part of the shared preview.');
       return;
     }
@@ -153,9 +176,10 @@ function createPreviewRelay(originPort, { readPosts = readPreviewPosts, readDest
     for (const name of forwardedHeaders) {
       if (request.headers[name] !== undefined) headers[name] = request.headers[name];
     }
-    if (likes) {
-      const cookie = request.headers.cookie?.split(';').map(value => value.trim()).find(value => value.startsWith(`${visitorCookie}=`));
-      if (cookie && visitorPattern.test(cookie.slice(visitorCookie.length + 1))) headers.cookie = cookie;
+    if (likes || guestbook) {
+      const cookieName = guestbook ? 'jerry_guestbook_visitor' : visitorCookie;
+      const cookie = request.headers.cookie?.split(';').map(value => value.trim()).find(value => value.startsWith(`${cookieName}=`));
+      if (cookie && visitorPattern.test(cookie.slice(cookieName.length + 1))) headers.cookie = cookie;
       if (likeBody) {
         headers.origin = `http://127.0.0.1:${originPort}`;
         headers['content-type'] = 'application/json';
@@ -175,7 +199,7 @@ function createPreviewRelay(originPort, { readPosts = readPreviewPosts, readDest
       else response.destroy();
     });
     response.on('close', () => upstream.destroy());
-    // Only validated anonymous photo votes carry a body or visitor cookie.
+    // Only validated public votes and guestbook actions carry a body or visitor cookie.
     upstream.end(likeBody);
     request.resume();
   });
@@ -216,7 +240,7 @@ async function main() {
   }
 
   try {
-    // Separate production preview from the editor's development server on port 3000.
+    // Keep the production preview separate from the development server on port 3000.
     start(process.execPath, [path.join(root, 'scripts', 'start-website.cjs'), '3100']);
     let ready = false;
     for (let attempt = 0; attempt < 30; attempt++) {

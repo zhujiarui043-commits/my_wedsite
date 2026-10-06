@@ -3,7 +3,7 @@ import { mkdir, open, readFile, stat, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { dataRoot, writeContentFile } from './content-storage';
 import { listPosts, withWriteLock } from './posts';
-import { ContentError } from './editor-image';
+import { ContentError } from './content-error';
 import { GALLERY_VISITOR_COOKIE, type GalleryLikeState } from './gallery-likes-shared';
 
 type Votes = Record<string, string[]>;

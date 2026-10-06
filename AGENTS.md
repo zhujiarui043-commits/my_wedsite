@@ -11,3 +11,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 ## Website language
 
 Use English for website interface text and album titles. When the user supplies an album title in Chinese, translate it into English before saving it. Preserve original song titles in their original language, including Chinese. Keep the supplied lyric ticker in Traditional Chinese, as explicitly requested by the user.
+
+## Album order
+
+Preserve the album order stored in `data/albums.json`. Append newly created albums at the end; do not sort albums by creation time.

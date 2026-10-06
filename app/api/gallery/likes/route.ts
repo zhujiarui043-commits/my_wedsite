@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { galleryLikeState, galleryVisitor, setGalleryLike } from '@/lib/gallery-likes';
 import { GALLERY_VISITOR_COOKIE } from '@/lib/gallery-likes-shared';
-import { ContentError } from '@/lib/editor-image';
+import { ContentError } from '@/lib/content-error';
 
 export const dynamic = 'force-dynamic';
 const headers = { 'Cache-Control': 'no-store', Vary: 'Cookie' };

@@ -14,8 +14,7 @@ async function stop(server) {
 }
 test('Gallery votes persist, deduplicate, and work through the preview', { timeout: 90000 }, async t => {
   const root = path.resolve(__dirname, '..');
-  const latest = JSON.parse(await fs.readFile(path.join(root, 'dist-desktop/latest.json'), 'utf8'));
-  const website = path.join(latest.directory, 'resources/website');
+  const website = path.join(root, '.next/standalone');
   const folder = await fs.mkdtemp(path.join(os.tmpdir(), 'jerry-likes-test-'));
   const children = []; let relay;
   t.after(async () => {
@@ -82,8 +81,8 @@ test('Gallery votes persist, deduplicate, and work through the preview', { timeo
     assert.equal((await vote(first.origin, alice.cookie, true, { body: '{' })).status, 400);
     assert.equal((await vote(first.origin, alice.cookie, true, { body: ' '.repeat(1025) })).status, 413);
     assert.equal((await vote(first.origin, alice.cookie, true, { id: '11111111-1111-4111-8111-111111111111' })).status, 404);
-    const posts = await (await fetch(first.origin + '/api/posts')).json();
-    assert.deepEqual(posts.posts.map(photo => photo.id).sort(), seeds.map(photo => photo.id).sort());
+    assert.equal((await fetch(first.origin + '/api/posts')).status, 404);
+    await assert.rejects(fs.access(path.join(folder, 'posts.json')), { code: 'ENOENT' });
     assert.equal((await state(first.origin, alice.cookie)).counts[id], 1);
     assert.ok(!(await fs.readFile(path.join(folder, 'gallery-likes.json'), 'utf8')).includes(bob.cookie.split('=')[1]));
   });

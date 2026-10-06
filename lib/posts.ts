@@ -1,6 +1,6 @@
-import { mkdir, readFile, writeFile, unlink } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { dataRoot, writeContentFile } from './content-storage';
+import { dataRoot } from './content-storage';
 import type { Post } from './post-shared';
 import { seedPhotos, galleryAsset } from './seed-gallery';
 export type { Post } from './post-shared';
@@ -25,23 +25,12 @@ export async function listPosts(): Promise<Post[]> {
     throw error;
   }
 }
-export async function writePosts(posts: Post[]) {
-  await writeContentFile('posts.json', posts);
-}
 function imagePath(key: string) {
   if (!/^[a-f0-9-]{36}$/.test(key)) throw new Error('Invalid image key');
   return path.join(imagesDir, key);
 }
 export function bucket() {
   return {
-    async put(key: string, bytes: ArrayBuffer, _metadata: unknown) {
-      await mkdir(imagesDir, { recursive: true });
-      await writeFile(imagePath(key), new Uint8Array(bytes), { flag: 'wx' });
-    },
-    async delete(key: string) {
-      try { await unlink(imagePath(key)); }
-      catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
-    },
     async get(key: string) {
       try {
         let bytes;

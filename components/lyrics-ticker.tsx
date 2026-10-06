@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 
 const PIXELS_PER_SECOND = 40;
 
 export default function LyricsTicker({ lyrics }: { lyrics: string[] }) {
   const [sequence, setSequence] = useState<string[]>([]);
-  const [duration, setDuration] = useState<number | null>(null);
+  const [cursor, setCursor] = useState(0);
+  const [measurements, setMeasurements] = useState<{ offset: number; distance: number; duration: number } | null>(null);
   const initialized = useRef(false);
   const track = useRef<HTMLDivElement>(null);
 
@@ -25,33 +26,48 @@ export default function LyricsTicker({ lyrics }: { lyrics: string[] }) {
     return () => window.cancelAnimationFrame(frame);
   }, [lyrics]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (sequence.length === 0) return;
-    const frame = window.requestAnimationFrame(() => {
-      if (track.current) {
-        // Two identical groups make the loop seamless; travel one group per cycle.
-        setDuration(Math.max(10, track.current.getBoundingClientRect().width / 2 / PIXELS_PER_SECOND));
-      }
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [sequence]);
+    const element = track.current;
+    if (!element) return;
+    function measure() {
+      const group = element!.firstElementChild as HTMLElement;
+      const lines = group.querySelectorAll<HTMLElement>('.home-lyric');
+      const gap = parseFloat(getComputedStyle(group).columnGap) || 0;
+      const offset = lines[0].getBoundingClientRect().width + gap;
+      const distance = lines[1].getBoundingClientRect().width + gap;
+      setMeasurements({ offset, distance, duration: distance / PIXELS_PER_SECOND });
+    }
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    if (element.parentElement) observer.observe(element.parentElement);
+    return () => observer.disconnect();
+  }, [sequence, cursor]);
 
   if (sequence.length === 0) return null;
 
   return (
     <aside
-      className={`home-lyrics${duration === null ? '' : ' is-measured'}`}
+      className={`home-lyrics${measurements === null ? '' : ' is-measured'}`}
       aria-label="Random lyrics"
       tabIndex={0}
-      style={{ '--home-lyric-duration': `${duration ?? 20}s` } as CSSProperties}
+      style={{
+        '--home-lyric-duration': `${measurements?.duration ?? 20}s`,
+        '--home-lyric-offset': `${measurements?.offset ?? 0}px`,
+        '--home-lyric-distance': `${measurements?.distance ?? 0}px`,
+        '--home-lyric-delay': cursor === 0 ? 'calc(var(--home-content-delay) + var(--home-content-duration))' : '0ms',
+      } as CSSProperties}
     >
       <div className="home-lyrics-window">
-        <div ref={track} className="home-lyrics-track" lang="zh-Hant">
-          {[0, 1].map(copy => (
-            <div className="home-lyrics-group" key={copy} aria-hidden={copy === 1 ? true : undefined}>
-              {sequence.map((lyric, index) => <p className="home-lyric" key={index}>{lyric}</p>)}
-            </div>
-          ))}
+        <div ref={track} key={cursor} className="home-lyrics-track" lang="zh-Hant"
+          onAnimationEnd={event => { if (event.target === event.currentTarget) setCursor(previous => previous + 1); }}>
+          <div className="home-lyrics-group">
+            {[-1, 0, 1].map(offset => <p className="home-lyric" key={offset} aria-hidden={offset !== 0 ? true : undefined}
+              style={cursor === 0 && offset === -1 ? { visibility: 'hidden' } : undefined}>
+              {sequence[(cursor + offset + sequence.length) % sequence.length]}
+            </p>)}
+          </div>
         </div>
       </div>
     </aside>

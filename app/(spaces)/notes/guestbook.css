@@ -1,0 +1,62 @@
+.space-main-notes:has(> .guestbook) { gap: 0; padding-top: clamp(48px, 7vh, 72px); }
+.space-main-notes:has(> .guestbook) > .space-copy { text-align: center; }
+.space-main-notes:has(> .guestbook) .space-byline { display: none; }
+.space-main-notes:has(> .guestbook) h1 { font-size: clamp(52px, 7vw, 92px); overflow-wrap: anywhere; }
+.space-main-notes:has(> .guestbook) .space-description { margin-inline: auto; }
+.guestbook { --gb-text: var(--space-text); --gb-muted: var(--space-muted); --gb-line: var(--space-line); --gb-panel: var(--space-surface); --gb-accent: #dfdecf; width: 100%; max-width: 840px; min-width: 0; margin: 56px auto 0; color: var(--gb-text); animation: space-copy-rise 2200ms 300ms cubic-bezier(.25, .8, .25, 1) both; }
+.guestbook-intro h2, .guestbook-feed-heading h2 { margin: 0; font-family: Georgia, 'Times New Roman', serif; font-size: 29px; font-weight: 400; line-height: 1.35; }
+.guestbook-intro > p { margin: 14px 0 28px; color: var(--gb-muted); font-size: 14px; line-height: 1.9; }
+.guestbook-composer { display: grid; gap: 16px; padding: 36px; border: 1px solid var(--gb-line); border-radius: 16px; background: var(--gb-panel); box-shadow: var(--space-shadow); }
+.guestbook-composer label { color: var(--gb-muted); font-size: 13px; letter-spacing: .6px; }
+.guestbook-composer input, .guestbook-composer textarea { width: 100%; min-width: 0; padding: 14px 18px; border: 1px solid var(--gb-line); border-radius: 10px; background: rgb(0 0 0 / 6%); color: var(--gb-text); font: inherit; font-size: 15px; line-height: 1.8; }
+.guestbook-composer input { max-width: 360px; min-height: 52px; margin-bottom: 10px; }
+.guestbook-composer textarea { resize: vertical; min-height: 180px; }
+.guestbook-composer input::placeholder, .guestbook-composer textarea::placeholder { color: var(--gb-muted); opacity: .7; }
+.guestbook input:focus-visible, .guestbook textarea:focus-visible, .guestbook button:focus-visible { outline: 2px solid var(--gb-accent); outline-offset: 4px; }
+.guestbook button { cursor: pointer; }
+.guestbook button:disabled { cursor: default; opacity: .5; }
+.guestbook-composer-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 18px; margin-top: 12px; }
+.guestbook-composer-footer > span { color: var(--gb-muted); font-size: 12px; }
+.guestbook-composer-footer > div { display: flex; gap: 14px; }
+.guestbook-send, .guestbook-cancel { display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 44px; padding: 11px 22px; border-radius: 999px; border: 1px solid var(--gb-line); font-size: 13px; line-height: 1.6; transition: background 180ms ease, border-color 180ms ease; }
+.guestbook-send { background: var(--gb-accent); border-color: var(--gb-accent); color: #20281f; }
+.guestbook-send:not(:disabled):hover { background: #f3f0e9; border-color: #f3f0e9; }
+.guestbook-cancel { color: var(--gb-muted); background: transparent; }
+.guestbook-notice { min-height: 24px; margin: 14px 0 0; color: var(--gb-accent); font-size: 13px; line-height: 1.8; }
+.guestbook-error { margin: 8px 0 0; color: #e5a394; font-size: 13px; line-height: 1.8; }
+.guestbook-error button { margin-left: 6px; text-decoration: underline; }
+.guestbook-feed-heading { display: flex; justify-content: space-between; gap: 24px; align-items: center; margin: 56px 0 28px; }
+.guestbook-feed-heading > span { color: var(--gb-muted); font-size: 12px; }
+.guestbook-feed { display: grid; gap: 28px; }
+.guestbook-thread { border: 1px solid var(--gb-line); border-radius: 16px; overflow: hidden; background: var(--gb-panel); box-shadow: var(--space-shadow); }
+.guestbook-message { padding: 28px 32px; min-width: 0; }
+.guestbook-message > header { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.guestbook-avatar { display: grid; place-items: center; width: 32px; height: 32px; flex-shrink: 0; border: 1px solid var(--gb-line); border-radius: 50%; color: var(--gb-accent); font-family: Georgia, serif; font-size: 17px; }
+.guestbook-message header strong { max-width: 100%; font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.guestbook-message time { margin-left: auto; color: var(--gb-muted); font-size: 12px; }
+.guestbook-message-body { margin: 24px 0; color: var(--gb-text); font-size: 16px; line-height: 1.95; white-space: pre-wrap; overflow-wrap: anywhere; }
+.guestbook-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 20px; }
+.guestbook-actions button { display: inline-flex; align-items: center; gap: 8px; padding: 8px 0; border: 0; background: transparent; color: var(--gb-muted); font-size: 13px; }
+.guestbook-actions button:not(:disabled):hover { color: var(--gb-text); }
+.guestbook-like[aria-pressed='true'] { color: #e6a0a9; }
+.guestbook-like[aria-pressed='true'] svg { fill: currentColor; }
+.guestbook-replies { margin: 0 32px 28px 48px; padding-left: 20px; border-left: 1px solid var(--gb-line); }
+.guestbook-reply { padding: 16px 0; border-top: 1px solid var(--gb-line); }
+.guestbook-reply .guestbook-message-body { font-size: 14px; }
+.guestbook-reply-composer { padding: 0 32px 32px; }
+.guestbook-reply-composer > p { margin: 0 0 14px; color: var(--gb-muted); font-size: 12px; }
+.guestbook-more { display: block; margin: 28px auto 0; min-height: 44px; padding: 11px 22px; color: var(--gb-muted); border: 1px solid var(--gb-line); border-radius: 999px; font-size: 13px; }
+.guestbook-replies > .guestbook-more { margin: 0 0 12px; }
+.guestbook-empty { margin: 0; padding: 56px 24px; border-block: 1px solid var(--gb-line); color: var(--gb-muted); font-size: 14px; line-height: 1.8; text-align: center; }
+@media (max-width: 760px) { .space-main-notes:has(> .guestbook) { padding-top: 44px; } .guestbook { margin-top: 44px; } }
+@media (max-width: 480px) {
+  .guestbook-composer, .guestbook-message { padding: 24px 20px; }
+  .guestbook-composer textarea { min-height: 160px; }
+  .guestbook-replies { margin: 0 18px 18px 26px; padding-left: 12px; }
+  .guestbook-reply { padding: 16px 0; }
+  .guestbook-reply-composer { padding: 0 18px 18px; }
+  .guestbook-composer-footer > div { gap: 8px; }
+  .guestbook-send, .guestbook-cancel { padding: 11px 16px; }
+  .guestbook-message time { width: 100%; margin-left: 42px; }
+}
+@media (prefers-reduced-motion: reduce) { .guestbook { animation: none; } .guestbook-send, .guestbook-cancel { transition: none; } }

@@ -2,6 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('node:http');
 const { createPreviewRelay } = require('../scripts/share-preview.cjs');
+const { computeCacheBustingSearchParam } = require('next/dist/shared/lib/router/utils/cache-busting-search-param');
 
 function request(port, pathname, method = 'GET', headers = {}, body) {
   return new Promise((resolve, reject) => {
@@ -15,6 +16,44 @@ function request(port, pathname, method = 'GET', headers = {}, body) {
     call.end(body);
   });
 }
+
+test('navigation and prefetch keep the RSC cache key valid through the relay', async t => {
+  const origin = http.createServer(async (req, res) => {
+    const expectedHash = await computeCacheBustingSearchParam(
+      req.headers['next-router-prefetch'], req.headers['next-router-segment-prefetch'],
+      req.headers['next-router-state-tree'], req.headers['next-url'],
+    );
+    const url = new URL(req.url, 'http://preview.local');
+    if (url.searchParams.get('_rsc') !== expectedHash) {
+      url.searchParams.set('_rsc', expectedHash);
+      res.writeHead(307, { location: url.pathname + url.search });
+      res.end();
+      return;
+    }
+    res.writeHead(200, { 'Content-Type': 'text/x-component' });
+    res.end('0:{"navigation":"ready"}\n');
+  });
+  await new Promise(resolve => origin.listen(0, '127.0.0.1', resolve));
+  const relay = createPreviewRelay(origin.address().port);
+  await new Promise(resolve => relay.listen(0, '127.0.0.1', resolve));
+  t.after(() => { relay.close(); origin.close(); });
+
+  const stateTree = encodeURIComponent(JSON.stringify(['', { children: ['__PAGE__', {}] }]));
+  for (const [pathname, navigation] of [
+    ['/about', { 'next-router-prefetch': '1', 'next-router-segment-prefetch': '/_tree' }],
+    ['/journey', { 'next-router-state-tree': stateTree }],
+  ]) {
+    const headers = { rsc: '1', 'next-url': '/', ...navigation };
+    const hash = await computeCacheBustingSearchParam(
+      headers['next-router-prefetch'], headers['next-router-segment-prefetch'],
+      headers['next-router-state-tree'], headers['next-url'],
+    );
+    const result = await request(relay.address().port, `${pathname}?_rsc=${hash}`, 'GET', headers);
+    assert.equal(result.status, 200, `${pathname} must load without a cache-key redirect`);
+    assert.equal(result.headers['content-type'], 'text/x-component');
+    assert.equal(result.headers.location, undefined);
+  }
+});
 
 test('temporary preview serves public pages while keeping editing private', async t => {
   const received = [];
@@ -96,6 +135,34 @@ test('temporary preview serves public pages while keeping editing private', asyn
     assert.equal(received.length, before);
     const invalidCookie = await request(relayPort, '/api/gallery/likes', 'GET', { cookie: 'jerry_gallery_visitor=invalid; local-admin=private' });
     assert.equal(JSON.parse(invalidCookie.body).headers.cookie, undefined);
+  });
+
+  await t.test('guestbook messages, replies, and likes pass through without exposing moderation', async () => {
+    const id = '12345678-1234-4234-8234-123456789012';
+    const cookie = 'jerry_guestbook_visitor=77777777-7777-4777-8777-777777777777';
+    const headers = { host: 'friend-preview.example', origin: 'https://friend-preview.example', 'content-type': 'application/json', cookie: `${cookie}; local-admin=private; jerry_gallery_visitor=66666666-6666-4666-8666-666666666666`, authorization: 'Bearer private' };
+    const get = await request(relayPort, '/api/guestbook', 'GET', headers);
+    assert.equal(get.status, 200); assert.equal(JSON.parse(get.body).headers.cookie, cookie);
+    for (const input of [
+      { action: 'message', id, nickname: 'A visitor', body: 'Hello!', parentId: null },
+      { action: 'message', id, nickname: 'A visitor', body: 'A reply', parentId: id },
+      { action: 'like', id, liked: true },
+    ]) {
+      const result = await request(relayPort, '/api/guestbook', 'POST', headers, JSON.stringify(input));
+      assert.equal(result.status, 200);
+      const forwarded = JSON.parse(result.body);
+      assert.deepEqual(JSON.parse(forwarded.body), input);
+      assert.equal(forwarded.headers.cookie, cookie); assert.equal(forwarded.headers.authorization, undefined);
+      assert.equal(forwarded.headers.origin, `http://127.0.0.1:${originPort}`);
+    }
+    const before = received.length;
+    assert.equal((await request(relayPort, '/api/guestbook', 'POST', { ...headers, origin: 'https://foreign.example' }, '{}')).status, 403);
+    assert.equal((await request(relayPort, '/api/guestbook', 'POST', { ...headers, 'content-type': 'text/plain' }, '{}')).status, 415);
+    for (const input of [{ action: 'delete', id }, { action: 'message', id, nickname: 'A', body: 'x'.repeat(2001), parentId: null }, { action: 'like', id, liked: true, admin: true }]) assert.equal((await request(relayPort, '/api/guestbook', 'POST', headers, JSON.stringify(input))).status, 400);
+    assert.equal((await request(relayPort, '/api/guestbook', 'POST', headers, ' '.repeat(16385))).status, 413);
+    assert.equal((await request(relayPort, '/api/guestbook/moderate', 'GET', headers)).status, 404);
+    for (const route of ['/api/guestbook', '/api/guestbook/moderate']) assert.equal((await request(relayPort, route, 'DELETE', headers, JSON.stringify({ id }))).status, 405);
+    assert.equal(received.length, before);
   });
 
   await t.test('destination journals are shared while unknown and deeper routes stay private', async () => {

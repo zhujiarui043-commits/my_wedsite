@@ -1,14 +1,14 @@
 'use client';
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { imageUrl, type Post } from '@/lib/post-shared';
+import { imageUrl, imagePreviewUrl, type Post } from '@/lib/post-shared';
 
 export default function GalleryFeed({ photos }: { photos: Post[] }) {
   const [selected, setSelected] = useState<Post | null>(null);
   return <>
     <section className="space-gallery-grid" aria-label="Photographs">
       {photos.map(photo => <button key={photo.id} className="space-gallery-card" onClick={() => setSelected(photo)} aria-label={`View ${photo.title}`}>
-        <img src={imageUrl(photo)} alt={photo.title} loading="lazy" decoding="async" />
+        <img src={imagePreviewUrl(photo)} alt={photo.title} loading="lazy" decoding="async" />
         <span className="space-gallery-caption"><strong>{photo.title}</strong><span>{photo.location || photo.taken_at}</span></span>
       </button>)}
     </section>

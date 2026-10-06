@@ -19,7 +19,7 @@ export default function AboutPage() {
       media={
         <figure className="space-photo space-photo-portrait">
           <img
-            src="/about-portrait.png"
+            src="/about-portrait.webp"
             alt="A mirror selfie wearing glasses and a black shirt."
             width={1086}
             height={1448}

@@ -6,6 +6,8 @@ export type GalleryPhoto = {
   date: string;
   src: string;
   thumbnail: string;
+  smallThumbnail?: string;
+  thumbnailSrcSet?: string;
   aspectRatio: number;
   likes: number;
 };
