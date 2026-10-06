@@ -3,12 +3,15 @@ import Link from 'next/link';
 import { ArrowUpRight } from 'lucide-react';
 import SpacePage from '@/components/space-page';
 import JourneyMap from '@/components/journey-map';
-import destinations from '@/lib/journey-destinations.json';
+import { listDestinations } from '@/lib/destinations';
 import { spaces } from '@/lib/spaces';
 
 export const metadata: Metadata = { title: 'Journey | Jerry Zhu' };
 
-export default function JourneyPage() {
+export const dynamic = 'force-dynamic';
+
+export default async function JourneyPage() {
+  const destinations = await listDestinations();
   return (
     <SpacePage spaceId="journey" media={<JourneyMap />}>
       <p className="space-description">{spaces.find(space => space.id === 'journey')!.description}</p>

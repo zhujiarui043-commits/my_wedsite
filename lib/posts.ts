@@ -1,10 +1,11 @@
-import { mkdir, readFile, rename, writeFile, unlink } from 'node:fs/promises';
+import { mkdir, readFile, writeFile, unlink } from 'node:fs/promises';
 import path from 'node:path';
-import { randomUUID } from 'node:crypto';
+import { dataRoot, writeContentFile } from './content-storage';
 import type { Post } from './post-shared';
+import { seedPhotos, galleryAsset } from './seed-gallery';
 export type { Post } from './post-shared';
 
-const root = path.join(process.cwd(), 'data');
+const root = dataRoot;
 const postsFile = path.join(root, 'posts.json');
 const imagesDir = path.join(root, 'images');
 // Share the write queue across server modules and development reloads.
@@ -20,20 +21,12 @@ export async function listPosts(): Promise<Post[]> {
     if (!Array.isArray(posts)) throw new Error('Invalid posts data');
     return posts.sort((a, b) => b.created_at.localeCompare(a.created_at));
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [...seedPhotos];
     throw error;
   }
 }
 export async function writePosts(posts: Post[]) {
-  await mkdir(root, { recursive: true });
-  const temporary = `${postsFile}.${randomUUID()}.tmp`;
-  try {
-    await writeFile(temporary, JSON.stringify(posts, null, 2), 'utf8');
-    await rename(temporary, postsFile);
-  } catch (error) {
-    await unlink(temporary).catch(() => undefined);
-    throw error;
-  }
+  await writeContentFile('posts.json', posts);
 }
 function imagePath(key: string) {
   if (!/^[a-f0-9-]{36}$/.test(key)) throw new Error('Invalid image key');
@@ -51,7 +44,13 @@ export function bucket() {
     },
     async get(key: string) {
       try {
-        const bytes = await readFile(imagePath(key));
+        let bytes;
+        try { bytes = await readFile(imagePath(key)); }
+        catch (error) {
+          const asset = galleryAsset(key);
+          if ((error as NodeJS.ErrnoException).code !== 'ENOENT' || !asset) throw error;
+          bytes = await readFile(path.join(process.cwd(), 'public', asset.image));
+        }
         const contentType = bytes[0] === 255 ? 'image/jpeg' : bytes[0] === 137 ? 'image/png' : 'image/webp';
         return {
           body: new Uint8Array(bytes),

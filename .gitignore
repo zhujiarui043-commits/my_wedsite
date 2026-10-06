@@ -3,6 +3,8 @@ node_modules/
 data/
 *.tsbuildinfo
 .env*
+dist-desktop/
+photos/
 
 # Original photo copies; the website uses the copies in public/.
 /*.jpg

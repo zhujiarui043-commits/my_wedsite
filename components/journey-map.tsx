@@ -1,5 +1,5 @@
 import geography from '@/lib/maps/east-asia.json';
-import { journeyPlaces } from '@/lib/journey-places';
+import { visitedPlaces } from '@/lib/destinations';
 import JourneyMapMarkers from '@/components/journey-map-markers';
 
 const width = 780;
@@ -13,10 +13,6 @@ const latitudeSpan = northY - mercatorY(south);
 const scale = Math.min((width - padding * 2) / (east - west), (height - padding * 2) / latitudeSpan);
 const offsetX = (width - (east - west) * scale) / 2;
 const offsetY = (height - latitudeSpan * scale) / 2;
-const focusRegions = new Set<string>(journeyPlaces.map(place => place.country));
-if (focusRegions.has('CHN')) {
-  for (const region of ['TWN', 'HKG', 'MAC']) focusRegions.add(region);
-}
 
 function project(longitude: number, latitude: number) {
   return [offsetX + (longitude - west) * scale, offsetY + (northY - mercatorY(latitude)) * scale];
@@ -29,7 +25,11 @@ function outline(polygons: number[][][][]) {
   }).join('') + 'Z')).join('');
 }
 
-export default function JourneyMap() {
+export default async function JourneyMap() {
+  const allPlaces = await visitedPlaces();
+  const focusRegions = new Set<string>(allPlaces.map(place => place.country));
+  if (focusRegions.has('CHN')) for (const region of ['TWN', 'HKG', 'MAC']) focusRegions.add(region);
+  const journeyPlaces = allPlaces.filter(place => place.longitude >= west && place.longitude <= east && place.latitude >= south && place.latitude <= north);
   return (
     <figure className="journey-map">
       <figcaption className="journey-map-caption">

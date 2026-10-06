@@ -58,6 +58,7 @@
   gap: clamp(32px, 5vw, 72px);
 }
 .space-main-journey { grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); }
+.space-main-full { grid-template-columns: minmax(0, 1fr); }
 .space-copy {
   min-width: 0;
   animation: space-copy-rise 2200ms 300ms cubic-bezier(.25, .8, .25, 1) both;
@@ -108,6 +109,39 @@
 .journey-story p { margin: 0; }
 .journey-story p + p { margin-top: 20px; }
 
+.notes-feed { margin-top: 56px; }
+.space-gallery-grid { margin-top: 56px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 36px 28px; }
+.space-gallery-card { min-width: 0; padding: 0; border: 0; background: none; color: inherit; text-align: left; }
+.space-gallery-card > img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 6px; animation: space-photo-focus 2200ms 300ms ease-in-out both; }
+.space-gallery-caption { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; }
+.space-gallery-caption strong { font-family: Georgia, serif; font-size: 20px; font-weight: 400; overflow-wrap: anywhere; }
+.space-gallery-caption > span { font-size: 12px; color: #bdc8b8; }
+.journey-story p { white-space: pre-wrap; }
+.notes-entry { border-top: 1px solid rgb(255 255 255 / 20%); }
+.notes-entry:last-child { border-bottom: 1px solid rgb(255 255 255 / 20%); }
+.notes-entry-link { display: grid; gap: 32px; padding-block: 32px; }
+.notes-entry-link.has-image { grid-template-columns: minmax(0, 1fr) 220px; align-items: center; }
+.notes-entry-copy { min-width: 0; }
+.notes-meta { display: flex; flex-wrap: wrap; gap: 8px 20px; color: #bdc8b8; font-size: 12px; line-height: 1.6; }
+.notes-meta span { overflow-wrap: anywhere; }
+.notes-entry h2 { margin: 14px 0 0; font-family: Georgia, 'Times New Roman', serif; font-size: clamp(24px, 2.5vw, 34px); font-weight: 400; line-height: 1.35; overflow-wrap: anywhere; }
+.notes-entry p { max-width: 720px; margin: 14px 0 0; color: #d6ddd2; font-size: 16px; line-height: 1.8; overflow-wrap: anywhere; }
+.notes-read { display: inline-flex; align-items: center; gap: 8px; margin-top: 20px; color: #c7d0c3; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; transition: color 220ms ease; }
+.notes-read svg { transition: transform 220ms ease; }
+.notes-entry-link:hover .notes-read { color: #fff; }
+.notes-entry-link:hover .notes-read svg { transform: translate(3px, -3px); }
+.notes-thumbnail { display: block; width: 100%; aspect-ratio: 3 / 2; object-fit: cover; border-radius: 6px; }
+.notes-empty { margin-top: 56px; padding-block: 32px; border-top: 1px solid rgb(255 255 255 / 20%); }
+.notes-empty h2 { margin: 0; font-family: Georgia, 'Times New Roman', serif; font-size: 28px; font-weight: 400; }
+.notes-empty p { margin: 12px 0 0; color: #bdc8b8; font-size: 15px; }
+.notes-unavailable { margin-top: 56px; color: #e6e9e2; line-height: 1.8; }
+.notes-detail-meta { margin-top: 24px; }
+.space-main-notes h1 { overflow-wrap: anywhere; }
+.notes-body { max-width: 760px; margin-top: 44px; color: #e6e9e2; font-size: clamp(17px, 1.5vw, 20px); line-height: 1.95; overflow-wrap: anywhere; }
+.notes-body p { margin: 0; white-space: pre-wrap; }
+.notes-body p + p { margin-top: 24px; }
+.notes-photo { width: min(100%, 480px); justify-self: end; }
+
 .journey-map { width: 100%; max-width: 640px; margin: 0; justify-self: end; }
 .journey-map-caption { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; color: #c7d0c3; font-size: 10px; letter-spacing: 1.8px; }
 .journey-map-legend { display: inline-flex; align-items: center; gap: 7px; font-size: 11px; letter-spacing: .5px; }
@@ -146,10 +180,12 @@
 }
 
 @media (max-width: 1100px) {
+  .space-gallery-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .journey-destination-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 760px) {
+  .space-gallery-grid { grid-template-columns: minmax(0, 1fr); margin-top: 40px; }
   .space-header { align-items: flex-start; flex-direction: column; gap: 8px; padding-block: 16px; }
   .space-nav { gap: 4px 20px; }
   .space-main { padding-top: 48px; gap: 36px; }
@@ -159,15 +195,21 @@
   .space-description { font-size: 16px; }
   .journey-destinations { margin-top: 40px; }
   .journey-story { font-size: 16px; }
+  .notes-feed, .notes-empty { margin-top: 40px; }
+  .notes-entry-link.has-image { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  .notes-photo { justify-self: center; }
   .space-backdrop img { object-position: 50% 45%; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .space-copy,
   .space-photo img,
+  .space-gallery-card > img,
   .journey-map svg { animation: none; }
   .space-nav a:hover,
   .space-nav a:focus-visible,
   .journey-destination-link:hover,
   .journey-destination-link:focus-visible { transform: none; }
+  .notes-read svg { transition: none; }
+  .notes-entry-link:hover .notes-read svg { transform: none; }
 }

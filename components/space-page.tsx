@@ -3,11 +3,13 @@ import type { ReactNode } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { spaces, type SpaceId } from '@/lib/spaces';
 
-export default function SpacePage({ spaceId, title, backLink, media, children }: {
+export default function SpacePage({ spaceId, title, backLink, fullWidth, media, afterContent, children }: {
   spaceId: SpaceId;
   title?: string;
   backLink?: { href: string; label: string };
+  fullWidth?: boolean;
   media?: ReactNode;
+  afterContent?: ReactNode;
   children?: ReactNode;
 }) {
   const space = spaces.find(item => item.id === spaceId)!;
@@ -27,7 +29,7 @@ export default function SpacePage({ spaceId, title, backLink, media, children }:
           ))}
         </nav>
       </header>
-      <main className={`space-main space-main-${spaceId}`}>
+      <main className={`space-main space-main-${spaceId}${fullWidth ? ' space-main-full' : ''}`}>
         <div className="space-copy">
           <p className="space-byline">JERRY ZHU’S SPACE</p>
           <h1>{title ?? space.label}</h1>
@@ -41,6 +43,7 @@ export default function SpacePage({ spaceId, title, backLink, media, children }:
           )}
         </div>
         {media}
+        {afterContent}
       </main>
     </div>
   );

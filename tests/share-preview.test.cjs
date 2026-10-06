@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const http = require('node:http');
 const { createPreviewRelay } = require('../scripts/share-preview.cjs');
 
-function request(port, pathname, method = 'GET', headers = {}) {
+function request(port, pathname, method = 'GET', headers = {}, body) {
   return new Promise((resolve, reject) => {
     const call = http.request({ hostname: '127.0.0.1', port, path: pathname, method, headers, agent: false }, response => {
       let body = '';
@@ -12,20 +12,24 @@ function request(port, pathname, method = 'GET', headers = {}) {
       response.on('end', () => resolve({ status: response.statusCode, headers: response.headers, body }));
     });
     call.on('error', reject);
-    call.end();
+    call.end(body);
   });
 }
 
 test('temporary preview serves public pages while keeping editing private', async t => {
   const received = [];
-  const origin = http.createServer((req, res) => {
-    received.push({ method: req.method, url: req.url, headers: req.headers });
+  const origin = http.createServer(async (req, res) => {
+    let body = ''; for await (const chunk of req) body += chunk;
+    received.push({ method: req.method, url: req.url, headers: req.headers, body });
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(received.at(-1)));
   });
   await new Promise(resolve => origin.listen(0, '127.0.0.1', resolve));
   const originPort = origin.address().port;
-  const relay = createPreviewRelay(originPort);
+  const publishedPosts = [];
+  const publishedAlbums = [];
+  const publishedDestinations = structuredClone(require('../lib/journey-destinations.json'));
+  const relay = createPreviewRelay(originPort, { readPosts: () => publishedPosts, readDestinations: () => publishedDestinations, readAlbums: () => publishedAlbums });
   await new Promise(resolve => relay.listen(0, '127.0.0.1', resolve));
   const relayPort = relay.address().port;
   t.after(() => { relay.close(); origin.close(); });
@@ -54,13 +58,44 @@ test('temporary preview serves public pages while keeping editing private', asyn
   await t.test('all write methods are rejected before reaching the origin', async () => {
     const count = received.length;
     for (const method of ['POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS']) {
-      for (const pathname of ['/', '/api/posts']) {
+      for (const pathname of ['/', '/api/posts', '/api/albums', '/api/gallery/featured']) {
         const result = await request(relayPort, pathname, method);
         assert.equal(result.status, 405);
         assert.equal(result.headers.allow, 'GET, HEAD');
       }
     }
     assert.equal(received.length, count);
+  });
+
+  await t.test('only published-photo likes pass through, carrying no editing credentials', async () => {
+    const id = '66666666-6666-4666-8666-666666666666';
+    const cookie = 'jerry_gallery_visitor=77777777-7777-4777-8777-777777777777';
+    const headers = { host: 'friend-preview.example', origin: 'https://friend-preview.example', 'content-type': 'application/json', cookie: `${cookie}; local-admin=private`, authorization: 'Bearer private' };
+    publishedPosts.push({ id, kind: 'photo', image_key: id });
+    const get = await request(relayPort, '/api/gallery/likes', 'GET', headers);
+    assert.equal(get.status, 200);
+    assert.equal(JSON.parse(get.body).headers.cookie, cookie);
+    const liked = await request(relayPort, '/api/gallery/likes', 'POST', headers, JSON.stringify({ id, liked: true }));
+    assert.equal(liked.status, 200);
+    const forwarded = JSON.parse(liked.body);
+    assert.equal(forwarded.method, 'POST');
+    assert.equal(forwarded.headers.cookie, cookie);
+    assert.equal(forwarded.headers.authorization, undefined);
+    assert.equal(forwarded.headers.origin, `http://127.0.0.1:${originPort}`);
+    assert.deepEqual(JSON.parse(forwarded.body), { id, liked: true });
+    const before = received.length;
+    for (const method of ['PUT', 'PATCH', 'DELETE']) assert.equal((await request(relayPort, '/api/gallery/likes', method)).status, 405);
+    assert.equal((await request(relayPort, '/api/gallery/likes', 'POST', { ...headers, origin: 'https://foreign.example' }, JSON.stringify({ id, liked: true }))).status, 403);
+    assert.equal((await request(relayPort, '/api/gallery/likes', 'POST', { ...headers, 'content-type': 'text/plain' }, '{}')).status, 415);
+    for (const body of ['{', JSON.stringify({ id, liked: true, title: 'Cannot edit' }), JSON.stringify({ id, liked: 'true' })]) assert.equal((await request(relayPort, '/api/gallery/likes', 'POST', headers, body)).status, 400);
+    assert.equal((await request(relayPort, '/api/gallery/likes', 'POST', headers, ' '.repeat(1025))).status, 413);
+    publishedPosts[0].kind = 'journal';
+    assert.equal((await request(relayPort, '/api/gallery/likes', 'POST', headers, JSON.stringify({ id, liked: true }))).status, 404);
+    publishedPosts.splice(0);
+    assert.equal((await request(relayPort, '/api/gallery/likes', 'POST', headers, JSON.stringify({ id, liked: true }))).status, 404);
+    assert.equal(received.length, before);
+    const invalidCookie = await request(relayPort, '/api/gallery/likes', 'GET', { cookie: 'jerry_gallery_visitor=invalid; local-admin=private' });
+    assert.equal(JSON.parse(invalidCookie.body).headers.cookie, undefined);
   });
 
   await t.test('destination journals are shared while unknown and deeper routes stay private', async () => {
@@ -79,12 +114,59 @@ test('temporary preview serves public pages while keeping editing private', asyn
     assert.equal(received.length, count);
   });
 
+  await t.test('published albums appear without a restart while album editing stays private', async () => {
+    const id = '88888888-8888-4888-8888-888888888888';
+    assert.equal((await request(relayPort, `/gallery/albums/${id}`)).status, 404);
+    publishedAlbums.push({ id });
+    const result = await request(relayPort, `/gallery/albums/${id}?_rsc=album`, 'GET', { rsc: '1' });
+    assert.equal(result.status, 200); assert.equal(JSON.parse(result.body).headers.rsc, '1');
+    assert.equal((await request(relayPort, `/gallery/albums/${id}/`, 'HEAD')).status, 200);
+    for (const route of ['/api/albums', `/gallery/albums/${id}/edit`, `/gallery/albums/${id}/api/posts`]) assert.equal((await request(relayPort, route)).status, 404);
+    assert.equal((await request(relayPort, `/gallery/albums/${id}`, 'POST')).status, 405);
+    publishedAlbums.pop();
+    assert.equal((await request(relayPort, `/gallery/albums/${id}`)).status, 404);
+  });
+
   await t.test('the studio, API, unshared routes, and project files stay private', async () => {
     const count = received.length;
-    for (const pathname of ['/studio', '/api/posts', '/api/images/example', '/moments', '/AGENTS.md', '/.env', '/data/posts.json']) {
+    for (const pathname of ['/studio', '/api/posts', '/api/gallery/featured', '/api/images/example', '/moments', '/AGENTS.md', '/.env', '/data/posts.json']) {
       assert.equal((await request(relayPort, pathname)).status, 404);
     }
     assert.equal(received.length, count);
+  });
+
+  await t.test('new notes and Gallery photos appear immediately, while unattached images and editing stay private', async () => {
+    const noteId = '11111111-1111-4111-8111-111111111111';
+    const photoKey = '22222222-2222-4222-8222-222222222222';
+    const privateKey = '33333333-3333-4333-8333-333333333333';
+    assert.equal((await request(relayPort, `/notes/${noteId}`)).status, 404);
+    publishedPosts.push({ id: noteId, kind: 'journal', image_key: photoKey });
+    publishedPosts.push({ id: privateKey, kind: 'photo', image_key: privateKey });
+    assert.equal((await request(relayPort, `/notes/${noteId}?_rsc=note`, 'GET', { rsc: '1' })).status, 200);
+    assert.equal((await request(relayPort, `/notes/${noteId}/`, 'HEAD')).status, 200);
+    assert.equal((await request(relayPort, `/api/images/${photoKey}`)).status, 200);
+    assert.equal((await request(relayPort, `/api/images/${privateKey}`)).status, 200);
+    const count = received.length;
+    for (const pathname of [`/notes/${privateKey}`, '/api/images/44444444-4444-4444-8444-444444444444', `/notes/${noteId}/edit`, '/studio/notes', '/writer', '/api/posts', '/api/destinations']) {
+      assert.equal((await request(relayPort, pathname)).status, 404);
+    }
+    assert.equal((await request(relayPort, `/notes/${noteId}`, 'POST')).status, 405);
+    assert.equal(received.length, count);
+    publishedPosts.splice(0, publishedPosts.length);
+    assert.equal((await request(relayPort, `/notes/${noteId}`)).status, 404);
+    assert.equal((await request(relayPort, `/api/images/${photoKey}`)).status, 404);
+  });
+
+  await t.test('published destinations and their photos are shared without a restart, then disappear after deletion', async () => {
+    const key = '55555555-5555-4555-8555-555555555555';
+    assert.equal((await request(relayPort, '/journey/chengdu')).status, 404);
+    publishedDestinations.push({ slug: 'chengdu', image_key: key });
+    assert.equal((await request(relayPort, '/journey/chengdu?_rsc=travel', 'GET', { rsc: '1' })).status, 200);
+    assert.equal((await request(relayPort, `/api/images/${key}`)).status, 200);
+    assert.equal((await request(relayPort, '/journey/chengdu/edit')).status, 404);
+    publishedDestinations.pop();
+    assert.equal((await request(relayPort, '/journey/chengdu')).status, 404);
+    assert.equal((await request(relayPort, `/api/images/${key}`)).status, 404);
   });
 
   await t.test('encoded and double-encoded traversal cannot bypass the route restrictions', async () => {
